@@ -7,7 +7,7 @@
 #   Non-interactive (recommended): bash setup-gateway.sh
 #   With custom values:            bash setup-gateway.sh admin MyPass123! 9119
 #   Interactive mode:              INTERACTIVE=1 bash setup-gateway.sh
-#   curl:                          curl -fsSL https://raw.githubusercontent.com/zurih/HermesGatewayDesktop/main/setup-gateway.sh | bash
+#   curl:                          curl -fsSL https://raw.githubusercontent.com/MiaAI-Lab/Hermes-Gateway-Desktop-setup-wizard/main/setup-gateway.sh | bash
 #
 # Requirements:
 #   - Hermes Agent installed (hermes command on PATH)
@@ -168,6 +168,12 @@ setup_credentials() {
         password=$(openssl rand -base64 12)
         WARN "No password provided. Generated one:"
         WARN "  Password: $password"
+        # Print to stderr so it shows even when piped to bash
+        echo "" >&2
+        echo -e "${BOLD}${GREEN}╔═══════════════════════════════════════════════════════════════╗${NC}" >&2
+        echo -e "${BOLD}${GREEN}║  SAVE THIS PASSWORD:  $password${NC}" >&2
+        echo -e "${BOLD}${GREEN}╚═══════════════════════════════════════════════════════════════╝${NC}" >&2
+        echo "" >&2
     fi
     PASSWORD="$password"
 

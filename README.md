@@ -15,31 +15,47 @@ No YAML editing. No manual systemd setup. One command does it all.
 
 ## Quick Start
 
+### 🚀 One-liner install (recommended)
+
 ```bash
-# Run the wizard (non-interactive, uses defaults)
+curl -fsSL https://raw.githubusercontent.com/MiaAI-Lab/HermesGW-setup/main/setup-gateway.sh | bash
+```
+
+That's it. It generates credentials, starts the server, and sets up a systemd service — all with sensible defaults.
+
+> **Requires Hermes v0.18.0+.** If you get `'hermes serve' not available`, run `hermes update` first.
+
+### Or download and run locally
+
+```bash
 bash setup-gateway.sh
+```
 
-# Or with custom credentials
+### With custom credentials
+
+```bash
 bash setup-gateway.sh myuser MySecurePass123 9119
+```
 
-# Or guided interactive mode (prompts for every choice)
-INTERACTIVE=1 bash setup-gateway.sh
+### Force reconfigure
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/MiaAI-Lab/HermesGW-setup/main/setup-gateway.sh | bash -s -- --clean
 ```
 
 ## What It Does
 
 1. **Detects your network** — finds your LAN and Tailscale IPs automatically
-2. **Checks Hermes version** — ensures v0.18.0+ (required for `hermes serve` subcommand)
-3. **Checks prerequisites** — Hermes CLI, systemd, openssl
-4. **Creates credentials** — username, password, and a stable auth secret that survives restarts
-5. **Configures the backend** — starts `hermes serve` on your chosen port
-6. **Sets up systemd** — creates a service with `Restart=always` so it bounces back if it crashes
-7. **Enables linger** — so the server starts on boot even without you logging in
-8. **Prints final instructions** — exact URL, credentials, and Desktop app steps
+2. **Checks prerequisites** — Hermes CLI, `hermes serve` subcommand, systemd, openssl
+3. **Creates credentials** — username, password, and a stable auth secret that survives restarts
+4. **Configures the backend** — starts `hermes serve` on your chosen port
+5. **Sets up systemd** — creates a service with `Restart=always` so it bounces back if it crashes
+6. **Enables linger** — so the server starts on boot even without you logging in
+7. **Prints final instructions** — exact URL, credentials, and Desktop app steps
 
 ## Usage
 
-### Non-interactive (recommended for first-time setup)
+### Non-interactive (defaults)
 
 ```bash
 bash setup-gateway.sh
@@ -72,12 +88,6 @@ INTERACTIVE=1 bash setup-gateway.sh
 ```
 
 Prompts for every choice with a 10-second timeout. If you don't respond, uses the default.
-
-### Via curl (one-liner install)
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/zurih/HermesGatewayDesktop/main/setup-gateway.sh | bash
-```
 
 ## After Setup
 
@@ -124,7 +134,7 @@ journalctl --user -u hermes-serve.service -f
 | Issue                          | Fix                                                                                       |
 | ------------------------------ | ----------------------------------------------------------------------------------------- |
 | `hermes` not found             | Install Hermes CLI: `curl -fsSL https://hermes-agent.nousresearch.com/install.sh \| bash` |
-| Version too old                | Upgrade: `hermes update` (v0.18.0+ required for `hermes serve`)                           |
+| `'hermes serve' not available` | Upgrade: `hermes update` (v0.18.0+ required)                                              |
 | Port already in use            | Use a different port: `bash setup-gateway.sh admin pass 9120`                             |
 | Service won't start            | Check logs: `journalctl --user -u hermes-serve.service -n 50`                             |
 | Can't connect from Desktop app | Verify IP with `hostname -I`, ensure firewall allows port 9119                            |

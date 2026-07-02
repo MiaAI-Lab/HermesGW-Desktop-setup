@@ -57,13 +57,14 @@ check_prereqs() {
         OK "Hermes CLI found: $(which hermes)"
     fi
 
-    # Verify 'hermes dashboard' subcommand exists
-    if ! hermes dashboard --help &>/dev/null 2>&1; then
-        ERROR "'hermes dashboard' subcommand not available."
+    # Verify 'hermes serve' subcommand exists (v0.18.0+)
+    if ! hermes serve --help &>/dev/null 2>&1; then
+        ERROR "'hermes serve' subcommand not available."
+        ERROR "This script requires Hermes v0.18.0 or newer."
         ERROR "Update Hermes: hermes update"
         has_error=1
     else
-        OK "'hermes dashboard' subcommand available"
+        OK "'hermes serve' subcommand available"
     fi
 
     if systemctl --user status &>/dev/null 2>&1; then
@@ -238,13 +239,13 @@ setup_port() {
     fi
 }
 
-# ── Start the dashboard server ───────────────────────────────────
+# ── Start the backend server ─────────────────────────────────────
 start_backend() {
-    HEADING "Starting Dashboard Server"
+    HEADING "Starting Backend Server"
 
     # Check if systemd is managing this service
-    if systemctl --user is-active hermes-dashboard.service &>/dev/null 2>&1; then
-        OK "Server already running via systemd (PID: $(systemctl --user show -p MainPID --value hermes-dashboard.service 2>/dev/null || echo 'unknown'))"
+    if systemctl --user is-active hermes-serve.service &>/dev/null 2>&1; then
+        OK "Server already running via systemd (PID: $(systemctl --user show -p MainPID --value hermes-serve.service 2>/dev/null || echo 'unknown'))"
         return 0
     fi
 
@@ -262,7 +263,7 @@ start_backend() {
             echo -n "  Stop it and start fresh? [y/N] "
             read -r -t 10 ANSWER 2>/dev/null || true
             if [[ "$ANSWER" =~ ^[Yy]$ ]]; then
-                pkill -f "hermes dashboard.*--port $PORT" 2>/dev/null || true
+                pkill -f "hermes serve.*--port $PORT" 2>/dev/null || true
                 sleep 2
             else
                 INFO "Keeping existing process. Skipping server start."
@@ -274,10 +275,10 @@ start_backend() {
         fi
     fi
 
-    INFO "Starting hermes dashboard on 0.0.0.0:$PORT ..."
+    INFO "Starting hermes serve on 0.0.0.0:$PORT ..."
 
     # Start in background using nohup with proper redirection
-    nohup hermes dashboard --host 0.0.0.0 --port "$PORT" >> /tmp/hermes-dashboard.log 2>&1 &
+    nohup hermes serve --host 0.0.0.0 --port "$PORT" >> /tmp/hermes-serve.log 2>&1 &
     local pid=$!
 
     # Give the process a moment to initialize
@@ -286,9 +287,9 @@ start_backend() {
     # Check if the process is still alive
     if ! kill -0 $pid 2>/dev/null; then
         ERROR "Server failed to start. Process exited immediately."
-        if [[ -f /tmp/hermes-dashboard.log ]]; then
+        if [[ -f /tmp/hermes-serve.log ]]; then
             WARN "Logs:"
-            cat /tmp/hermes-dashboard.log | head -20
+            cat /tmp/hermes-serve.log | head -20
         fi
         return 1
     fi
@@ -311,8 +312,8 @@ start_backend() {
     done
 
     WARN "Server may not have started. Check logs:"
-    if [[ -f /tmp/hermes-dashboard.log ]]; then
-        WARN "  cat /tmp/hermes-dashboard.log"
+    if [[ -f /tmp/hermes-serve.log ]]; then
+        WARN "  cat /tmp/hermes-serve.log"
     else
         WARN "  (log file not created)"
     fi
@@ -326,29 +327,29 @@ setup_systemd() {
     if ! systemctl --user status &>/dev/null 2>&1; then
         WARN "systemd user services not available. Skipping service setup."
         WARN "To keep the server running, use:"
-        WARN "  tmux new-session -d -s hermes-dashboard 'hermes dashboard --host 0.0.0.0 --port $PORT'"
+        WARN "  tmux new-session -d -s hermes-serve 'hermes serve --host 0.0.0.0 --port $PORT'"
         return 0
     fi
 
-    local service_file="$HOME/.config/systemd/user/hermes-dashboard.service"
+    local service_file="$HOME/.config/systemd/user/hermes-serve.service"
     mkdir -p "$HOME/.config/systemd/user"
 
     cat > "$service_file" <<EOF
 [Unit]
-Description=Hermes Dashboard Server (remote backend for Desktop app)
+Description=Hermes Backend Server (powers the Desktop app)
 Wants=network-online.target
 After=network-online.target
 
 [Service]
 Type=simple
-ExecStart=$(which hermes) dashboard --host 0.0.0.0 --port $PORT
+ExecStart=$(which hermes) serve --host 0.0.0.0 --port $PORT
 Restart=always
 RestartSec=5
 Environment=HOME=$HOME
 Environment=HERMES_HOME=$HOME/.hermes
 StandardOutput=journal
 StandardError=journal
-SyslogIdentifier=hermes-dashboard
+SyslogIdentifier=hermes-serve
 
 [Install]
 WantedBy=default.target
@@ -359,14 +360,14 @@ EOF
     systemctl --user daemon-reload
     OK "systemd reloaded"
 
-    systemctl --user enable --now hermes-dashboard.service
+    systemctl --user enable --now hermes-serve.service
     OK "Service enabled and started"
 
-    if systemctl --user is-active hermes-dashboard.service &>/dev/null 2>&1; then
+    if systemctl --user is-active hermes-serve.service &>/dev/null 2>&1; then
         OK "Service is active (running)"
     else
         WARN "Service may not have started. Check status:"
-        WARN "  systemctl --user status hermes-dashboard.service"
+        WARN "  systemctl --user status hermes-serve.service"
     fi
 }
 
@@ -431,9 +432,9 @@ print_final_instructions() {
     echo -e "${DIM}That's it. Your Desktop app is now connected to your local Hermes backend.${NC}\n"
 
     echo -e "${BOLD}🔧 Manage the backend:${NC}"
-    echo "  systemctl --user status hermes-dashboard.service   # status"
-    echo "  systemctl --user restart hermes-dashboard.service  # restart"
-    echo "  journalctl --user -u hermes-dashboard.service -f   # live logs"
+    echo "  systemctl --user status hermes-serve.service   # status"
+    echo "  systemctl --user restart hermes-serve.service  # restart"
+    echo "  journalctl --user -u hermes-serve.service -f   # live logs"
     echo ""
 
     echo -e "${DIM}Setup completed on $(date).${NC}"
